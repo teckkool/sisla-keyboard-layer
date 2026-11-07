@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SISLA Keyboard Layer Demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #111; color: #eee; margin: 0; padding: 8px; font-size: 13px; }
+  .container { max-width: 700px; margin: 0 auto; display: flex; gap: 8px; }
+  .main { flex: 1; }
+  .side { width: 200px; background: #1a1a1a; padding: 6px; border-radius: 4px; position: relative; display: flex; }
+  .menus { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; width: 60px; }
+  .button-area { margin-left: 8px; }
+  .buttons { display: flex; flex-direction: column; gap: 2px; margin: 4px 0; }
+  .menus button, .buttons button { padding: 3px 6px; background: #222; color: #fff; border: 1px solid #555; border-radius: 3px; cursor: pointer; font-size: 12px; text-align: left; width: 100%; height: 22px; }
+  .menus button.hover-lit, .buttons button.hover-lit { background: #004488; }
+  .menus button.selected, .buttons button.selected { background: #0066cc; border: 2px solid #ffff00; outline: 2px solid #ffff00; outline-offset: 1px; color: #ffff00; font-weight: bold; }
+  .floating-menu {
+    position: absolute; left: 100%; top: 0; margin-left: 6px;
+    background: #222; border: 1px solid #666; border-radius: 4px;
+    padding: 4px; z-index: 10; display: none; font-size: 11px; white-space: nowrap;
+  }
+  .hidden { display: none; }
+  .popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 2px solid #666; padding: 12px; border-radius: 6px; z-index: 100; max-width: 280px; font-size: 24px; }
+  .on-screen { margin-top: 6px; font-size: 11px; opacity: 0.8; }
+  #dial:invalid, #dial:focus { border-color: #666 !important; box-shadow: none !important; outline: none; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="side">
+    <div id="menuPanel" class="hidden">
+      <h3 style="margin:4px 0;font-size:13px;">F1–F12</h3>
+      <div class="menus" id="menus">
+        <div class="floating-menu" id="floatingMenu">Hover or select F-key to see menu details</div>
+      </div>
+      <button id="backToSelector" style="padding:3px 6px;background:#222;color:#fff;border:1px solid #555;border-radius:3px;cursor:pointer;font-size:12px;text-align:left;width:100%;height:22px;margin-top:2px;">Back</button>
+    </div>
+    <div id="buttonPanel" class="hidden button-area">
+      <h3 style="margin:4px 0;font-size:13px;">F<span id="currentMenu"></span> · Buttons</h3>
+      <div class="buttons" id="buttons"></div>
+    </div>
+  </div>
+  <div class="main">
+    <h1>SISLA Keyboard Layer Demo</h1>
+    <p style="margin:2px 0;font-size:11px;">Dial 0–100 · 12 menus (F1–F12) · 12 buttons (1–0 - =)</p>
+
+    <div class="dial" style="position:relative;display:inline-block;width:110px;height:110px;">
+      <canvas id="roundDial" width="110" height="110" style="vertical-align:middle;cursor:pointer;border-radius:50%;background:#222;"></canvas>
+      <div id="dialDisplay" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:26px;text-align:center;background:#111;border:1px solid #666;color:#fff;font-size:14px;border-radius:3px;font-family:monospace;cursor:ns-resize;line-height:26px;z-index:5;user-select:none;">000</div>
+      <input type="hidden" id="dial" value="000">
+      <button id="layerToggle">Layer OFF</button>
+      <span id="layerName">Layer 0 (normal)</span>
+    </div>
+
+    <div class="status" id="status">Normal keyboard · Layer 0</div>
+
+    <div id="splash" class="hidden splash">
+      <h2 id="splashTitle"></h2>
+      <p id="splashDesc"></p>
+      <p>Information, data, and controls go here. Keyboard is normal except F-keys.</p>
+      <div id="splashOsk" class="hidden"></div>
+      <button id="closeSplash">Close splash (back to menus)</button>
+      <button id="swiftReturn">Swift return to normal</button>
+    </div>
+
+    <div class="on-screen">
+      <label><input type="checkbox" id="showSmallKb"> Show smaller on-screen keyboard</label>
+      <label><input type="checkbox" id="showFullKb"> Show full-screen keyboard</label>
+      <div id="osk" class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const dial = document.getElementById('dial');
+const canvas = document.getElementById('roundDial');
+const ctx = canvas.getContext('2d');
+let dialDragging = false;
+
+function drawDial(val) {
+  const cx = 55, cy = 55, r = 38;
+  ctx.clearRect(0, 0, 110, 110);
+  // outer ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // exterior indicators every 5 degrees (72 marks)
+  for (let deg = 0; deg < 360; deg += 5) {
+    const a = (deg - 90) * Math.PI / 180;
+    const inner = r - 4;
+    const outer = r + 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+    ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer);
+    ctx.strokeStyle = (deg % 30 === 0) ? '#aaa' : '#666';
+    ctx.lineWidth = (deg % 30 === 0) ? 2 : 1;
+    ctx.stroke();
+  }
+  // 1-5 indicators around the dial
+  const labels = [1, 2, 3, 4, 5];
+  labels.forEach((lab, idx) => {
+    const a = (idx / 5) * Math.PI * 2 - Math.PI / 2;
+    const lx = cx + Math.cos(a) * (r + 8);
+    const ly = cy + Math.sin(a) * (r + 8);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lab, lx, ly);
+  });
+  // pointer for current value
+  const angle = (val / 100) * Math.PI * 2 - Math.PI / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(angle) * (r - 8), cy + Math.sin(angle) * (r - 8));
+  ctx.strokeStyle = '#ffff00';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function pad3(n) { return String(Math.max(0, Math.min(100, n))).padStart(3, '0'); }
+
+function setDialFromEvent(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left - 55;
+  const y = e.clientY - rect.top - 55;
+  let angle = Math.atan2(y, x) + Math.PI / 2;
+  if (angle < 0) angle += Math.PI * 2;
+  let val = Math.round((angle / (Math.PI * 2)) * 100) % 100;
+  dial.value = pad3(val);
+  drawDial(val);
+  document.getElementById('dialDisplay').textContent = pad3(val);
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  dialDragging = true;
+  // press on dial moves to position 1
+  dial.value = pad3(1);
+  drawDial(1);
+  dial.dispatchEvent(new Event('change'));
+});
+canvas.addEventListener('mousemove', (e) => { if (dialDragging) setDialFromEvent(e); });
+canvas.addEventListener('mouseup', () => dialDragging = false);
+canvas.addEventListener('mouseleave', () => dialDragging = false);
+
+function scrollDial(delta) {
+  let v = parseInt(dial.value) || 0;
+  v += (delta < 0) ? 1 : -1;
+  v = Math.max(0, Math.min(100, v));
+  dial.value = pad3(v);
+  drawDial(v);
+  document.getElementById('dialDisplay').textContent = pad3(v);
+}
+function onDialWheel(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  let v = parseInt(dial.value) || 0;
+  v += (e.deltaY < 0) ? 1 : -1;
+  v = Math.max(0, Math.min(100, v));
+  dial.value = pad3(v);
+  drawDial(v);
+  document.getElementById('dialDisplay').textContent = pad3(v);
+}
+dial.addEventListener('wheel', onDialWheel, { passive: false });
+canvas.addEventListener('wheel', onDialWheel, { passive: false });
+const dialDisplay = document.getElementById('dialDisplay');
+dialDisplay.addEventListener('wheel', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  let v = parseInt(dial.value) || 0;
+  v += (e.deltaY < 0) ? 1 : -1;
+  if (v > 100) v = 100;
+  if (v < 0) v = 0;
+  dial.value = pad3(v);
+  this.textContent = pad3(v);
+  drawDial(v);
+}, { passive: false });
+drawDial(0);
+const layerToggle = document.getElementById('layerToggle');
+const layerName = document.getElementById('layerName');
+const status = document.getElementById('status');
+const menuPanel = document.getElementById('menuPanel');
+const buttonPanel = document.getElementById('buttonPanel');
+const menusDiv = document.getElementById('menus');
+const buttonsDiv = document.getElementById('buttons');
+const splash = document.getElementById('splash');
+const splashTitle = document.getElementById('splashTitle');
+const splashDesc = document.getElementById('splashDesc');
+const currentMenuSpan = document.getElementById('currentMenu');
+const closeSplashBtn = document.getElementById('closeSplash');
+const swiftBtn = document.getElementById('swiftReturn');
+const showSmall = document.getElementById('showSmallKb');
+const showFull = document.getElementById('showFullKb');
+const osk = document.getElementById('osk');
+const splashOsk = document.getElementById('splashOsk');
+
+function updateOsk() {
+  if (showSmall.checked && showFull.checked) {
+    if (document.activeElement === showFull) showSmall.checked = false;
+    else showFull.checked = false;
+  }
+  const html = showFull.checked
+    ? '<p style="font-size:16px;">Full-screen keyboard<br>F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12<br>1 2 3 4 5 6 7 8 9 0 - =</p>'
+    : '<p style="font-size:14px;">Smaller on-screen keyboard<br>F1–F12 · 1–0 - =</p>';
+  if (showSmall.checked || showFull.checked) {
+    osk.classList.remove('hidden');
+    osk.style.display = 'block';
+    osk.style.background = '#222';
+    osk.style.border = '1px solid #666';
+    osk.style.padding = '8px';
+    osk.style.marginTop = '6px';
+    osk.innerHTML = html;
+    splashOsk.classList.remove('hidden');
+    splashOsk.style.display = 'block';
+    splashOsk.style.background = '#222';
+    splashOsk.style.border = '1px solid #666';
+    splashOsk.style.padding = '8px';
+    splashOsk.style.marginTop = '6px';
+    splashOsk.innerHTML = html;
+  } else {
+    osk.classList.add('hidden');
+    osk.style.display = 'none';
+    splashOsk.classList.add('hidden');
+    splashOsk.style.display = 'none';
+  }
+}
+showSmall.onchange = () => { if (showSmall.checked) showFull.checked = false; updateOsk(); };
+showFull.onchange = () => { if (showFull.checked) showSmall.checked = false; updateOsk(); };
+
+let layerActive = false;
+let currentMenu = null;
+let layerNames = {};
+
+function updateStatus(msg) {
+  status.textContent = msg;
+}
+
+function buildMenus() {
+  menusDiv.innerHTML = '';
+  for (let i = 1; i <= 12; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = `F${i}`;
+    btn.onclick = () => {
+      hideBriefPopup();
+      menusDiv.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      showBriefPopup(`F${i}`, `Menu ${i} on this layer. Selected.`, btn);
+      openMenu(i);
+    };
+    btn.onmouseenter = () => {
+      cancelMenuHide();
+      showBriefPopup(`F${i}`, `Menu ${i} on this layer. Hover or select to open its 10 buttons.`, btn);
+      btn.classList.add('hover-lit');
+      currentMenu = i;
+      buttonPanel.classList.remove('hidden');
+      buildButtons(i);
+    };
+    btn.onmouseleave = () => {
+      hideBriefPopup();
+      btn.classList.remove('hover-lit');
+      scheduleMenuHide();
+    };
+    menusDiv.appendChild(btn);
+  }
+}
+
+function buildButtons(menuNum) {
+  buttonsDiv.innerHTML = '';
+  currentMenuSpan.textContent = menuNum;
+  const keys = ['1','2','3','4','5','6','7','8','9','0','-','='];
+  for (let i = 0; i < 12; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = keys[i];
+    btn.onclick = () => {
+      hideBriefPopup();
+      buttonsDiv.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      // light the attached function button
+      menusDiv.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+      const fBtn = menusDiv.querySelectorAll('button')[menuNum - 1];
+      if (fBtn) fBtn.classList.add('selected');
+      setTimeout(() => openSplash(menuNum, i + 1), 400);
+    };
+    btn.onmouseenter = () => {
+      showBriefPopup(`Button ${keys[i]} · F${menuNum}`, `Button ${keys[i]} · Function button F${menuNum}. Select to open its splash screen with information, data and controls.`, btn);
+      btn.classList.add('hover-lit');
+    };
+    btn.onmouseleave = () => {
+      hideBriefPopup();
+      btn.classList.remove('hover-lit');
+    };
+    buttonsDiv.appendChild(btn);
+  }
+}
+
+let menuHideTimer = null;
+
+function scheduleMenuHide() {
+  if (menuHideTimer) clearTimeout(menuHideTimer);
+  menuHideTimer = setTimeout(() => {
+    const overF = document.querySelector('.menus button:hover');
+    const overBtn = document.querySelector('.buttons button:hover');
+    if (!overF && !overBtn && !document.querySelector('.menus button.selected')) {
+      buttonPanel.classList.add('hidden');
+    }
+  }, 300);
+}
+
+function cancelMenuHide() {
+  if (menuHideTimer) clearTimeout(menuHideTimer);
+}
+
+function showFloatingMenu(text) {
+  const fm = document.getElementById('floatingMenu');
+  fm.textContent = text;
+  fm.style.display = 'block';
+  if (hideTimer) clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => { fm.style.display = 'none'; }, 3000);
+}
+
+function openMenu(n) {
+  currentMenu = n;
+  buttonPanel.classList.remove('hidden');
+  buildButtons(n);
+  updateStatus(`Layer ${dial.value} · Menu F${n} open`);
+  showFloatingMenu(`F${n}: ${getMenuDesc(n)}`);
+}
+
+function getMenuDesc(n) {
+  return `This is the description for menu ${n} on the current layer. It tells you what this menu is for.`;
+}
+
+function openSplash(menu, btn) {
+  splashTitle.textContent = `Button ${btn} of Menu ${menu}`;
+  splashDesc.textContent = `Description, information, data and controls for this button.`;
+  splash.classList.remove('hidden');
+  menuPanel.classList.add('hidden');
+  buttonPanel.classList.add('hidden');
+  updateStatus(`Splash screen · normal keyboard (F-keys still active)`);
+}
+
+function showBriefPopup(title, text, nearEl) {
+  // remove any existing
+  document.querySelectorAll('.hover-pop').forEach(el => el.remove());
+  const pop = document.createElement('div');
+  pop.className = 'popup hover-pop';
+  pop.style.position = 'absolute';
+  pop.style.transform = 'none';
+  pop.style.zIndex = '200';
+  if (nearEl) {
+    const r = nearEl.getBoundingClientRect();
+    // place to the right, clear of the button menu
+    pop.style.left = (r.right + 120) + 'px';
+    pop.style.top = (r.top - 10) + 'px';
+    pop.style.fontSize = '24px';
+    pop.style.maxWidth = '220px';
+  }
+  pop.innerHTML = `<h3>${title}</h3><p>${text}</p>`;
+  document.body.appendChild(pop);
+  return pop;
+}
+
+function hideBriefPopup() {
+  document.querySelectorAll('.hover-pop').forEach(el => el.remove());
+}
+
+function setLayer(on) {
+  if (on && (parseInt(dial.value) || 0) === 0) {
+    dial.value = pad3(1);  // always start at 1 when turning on from 0
+  }
+  layerActive = on;
+  layerToggle.textContent = on ? 'Layer ON' : 'Layer OFF';
+  const n = parseInt(dial.value) || 0;
+  layerName.textContent = n === 0 ? 'Layer 0 (normal)' : (layerNames[n] || `Layer ${n}`);
+  if (on && n > 0) {
+    menuPanel.classList.remove('hidden');
+    buildMenus();
+    updateStatus(`Layer ${n} active · F1–F12 menus available`);
+  } else {
+    // always clear everything on OFF
+    menuPanel.classList.add('hidden');
+    buttonPanel.classList.add('hidden');
+    splash.classList.add('hidden');
+    dial.value = pad3(0);
+    currentMenu = null;
+    document.querySelectorAll('.selected, .hover-lit').forEach(el => el.classList.remove('selected', 'hover-lit'));
+    updateStatus('Normal keyboard · Layer 0 · all cleared');
+    layerName.textContent = 'Layer 0 (normal)';
+  }
+}
+
+dial.onchange = () => {
+  const n = Math.max(0, Math.min(100, parseInt(dial.value) || 0));
+  dial.value = pad3(n);
+  if (n > 0) {
+    setLayer(true);
+    showBriefPopup(`Layer ${n}`, layerNames[n] || `This is keyboard layer ${n}. It contains 12 menus (F1–F12) with 10 buttons each.`, dial);
+  } else {
+    setLayer(false);
+  }
+};
+
+layerToggle.onclick = () => {
+  if (layerActive) {
+    // turning off → dial returns to zero
+    dial.value = pad3(0);
+    drawDial(0);
+    setLayer(false);
+  } else {
+    dial.value = pad3(1);
+    drawDial(1);
+    setLayer(true);
+  }
+};
+
+closeSplashBtn.onclick = () => {
+  splash.classList.add('hidden');
+  buttonPanel.classList.remove('hidden');
+  menuPanel.classList.remove('hidden');
+  // keep the selected function button lit
+  updateStatus(`Back to function buttons + button menu · Layer ${dial.value}`);
+};
+
+// from button menu, back shows both function buttons and button menu
+const backToMenus = document.createElement('button');
+backToMenus.textContent = 'Back';
+backToMenus.style.height = '22px';
+backToMenus.style.marginTop = '2px';
+backToMenus.style.padding = '3px 6px';
+backToMenus.style.background = '#222';
+backToMenus.style.color = '#fff';
+backToMenus.style.border = '1px solid #555';
+backToMenus.style.borderRadius = '3px';
+backToMenus.style.cursor = 'pointer';
+backToMenus.style.fontSize = '12px';
+backToMenus.style.textAlign = 'left';
+backToMenus.style.width = '100%';
+backToMenus.onclick = () => {
+  buttonPanel.classList.add('hidden');
+  menuPanel.classList.remove('hidden');
+  updateStatus(`Back to function buttons · Layer ${dial.value}`);
+};
+buttonPanel.appendChild(backToMenus);
+
+swiftBtn.onclick = () => {
+  dial.value = pad3(0);
+  setLayer(false);
+};
+
+document.addEventListener('keydown', (e) => {
+  if (!layerActive) return;
+  if (e.key.startsWith('F') && e.key.length > 1) {
+    const n = parseInt(e.key.slice(1));
+    if (n >= 1 && n <= 12) {
+      e.preventDefault();
+      openMenu(n);
+    }
+  }
+  if (splash.classList.contains('hidden') && buttonPanel.classList.contains('hidden') === false) {
+    const keys = {'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'0':10,'-':11,'=':12};
+    if (keys[e.key]) openSplash(currentMenu, keys[e.key]);
+  }
+});
+
+// on-screen keyboard is handled above
+
+document.getElementById('backToSelector').onclick = () => {
+  dial.value = pad3(0);
+  setLayer(false);
+};
+
+menusDiv.addEventListener('mouseenter', () => {
+  if (layerActive) {
+    const fm = document.getElementById('floatingMenu');
+    fm.textContent = 'Hover: F1–F12 menus for this layer. Select a key to open and hold for 3s.';
+    fm.style.display = 'block';
+  }
+});
+menusDiv.addEventListener('mouseleave', () => {
+  const fm = document.getElementById('floatingMenu');
+  fm.style.display = 'none';
+});
+
+buttonPanel.addEventListener('mouseenter', cancelMenuHide);
+buttonPanel.addEventListener('mouseleave', scheduleMenuHide);
+
+buildMenus();
+</script>
+</body>
+</html>
