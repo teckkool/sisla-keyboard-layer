@@ -164,18 +164,36 @@ function onDialWheel(e) {
   drawDial(v);
   document.getElementById('dialDisplay').textContent = pad3(v);
 }
-const dialBox = document.querySelector('.dial');
-dialBox.addEventListener('wheel', function(e) {
+const dialDisplay = document.getElementById('dialDisplay');
+let dragStartY = 0;
+let dragStartVal = 0;
+let draggingNum = false;
+
+dialDisplay.addEventListener('mousedown', (e) => {
   e.preventDefault();
   e.stopPropagation();
+  draggingNum = true;
+  dragStartY = e.clientY;
+  dragStartVal = parseInt(dial.value) || 0;
+});
+document.addEventListener('mousemove', (e) => {
+  if (!draggingNum) return;
+  const dy = dragStartY - e.clientY;
+  let v = dragStartVal + Math.round(dy / 3);
+  v = Math.max(0, Math.min(100, v));
+  dial.value = pad3(v);
+  dialDisplay.textContent = pad3(v);
+  drawDial(v);
+});
+dialDisplay.addEventListener('wheel', (e) => {
+  e.preventDefault();
   let v = parseInt(dial.value) || 0;
   v += (e.deltaY < 0) ? 1 : -1;
-  if (v > 100) v = 100;
-  if (v < 0) v = 0;
+  v = Math.max(0, Math.min(100, v));
   dial.value = pad3(v);
-  document.getElementById('dialDisplay').textContent = pad3(v);
+  dialDisplay.textContent = pad3(v);
   drawDial(v);
-}, { passive: false, capture: true });
+}, { passive: false });
 drawDial(0);
 const layerToggle = document.getElementById('layerToggle');
 const layerName = document.getElementById('layerName');
