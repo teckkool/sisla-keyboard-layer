@@ -9,53 +9,37 @@
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button{font:inherit;color:var(--ink);background:#16233a;border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer}
-button:hover{border-color:var(--acc)}button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+button:hover:not(.skl-col button){border-color:var(--acc)}button.on{background:var(--acc);border-color:var(--acc);color:#fff}
 #app{display:grid;grid-template-columns:250px 1fr;height:100%}
 aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto}
 details{border-bottom:1px solid var(--line)}summary{list-style:none;cursor:pointer;padding:12px 14px;font-weight:650;font-size:15px}
-.pb{padding:2px 14px 14px}.note{color:var(--mute);font-size:12.5px}
+.layer-panel{padding:14px}.pb{padding:2px 14px 14px}.note{color:var(--mute);font-size:12.5px}
 main{padding:20px 24px;min-width:0}
 h1{font-size:20px;margin:0 0 6px}
 #log{margin-top:14px;font:12.5px/1.55 ui-monospace,Menlo,Consolas,monospace;color:#c9d6ea;background:#0b1424;border:1px solid var(--line);border-radius:8px;padding:10px 12px;height:50vh;overflow:auto}
+@media(max-width:560px){
+#app{display:block;height:auto} aside{min-height:390px;overflow:visible}
+.skl-col button{min-height:32px}
+}
 </style>
 </head>
 <body>
 <div id="app">
 <aside>
- <details open><summary>Keyboard Layer</summary><div class="pb" id="kb"></div></details>
+ <div class="layer-panel"><div id="kb"></div></div>
  <details open><summary>Other panel content</summary><div class="pb">
   <p class="note">This stands in for an app's own controls. It is hidden while the dial is open so only the dial controls show.</p>
   <p class="note">Lorem ipsum settings · sliders · checkboxes.</p>
  </div></details>
 </aside>
 <main>
- <h1>SISLA Rotary Layer Control · demo</h1>
- <p class="note">Layer button → choose a layer on the dial (click, drag, scroll, or type the number) → <b>Select</b> → F1–F12 → one of 12 buttons.
- Back: Backspace, right-click or the Back button. Esc: straight to Layer OFF. Layers 1–3 have sample menus; the rest are empty.</p>
+ <h1>SISLA command mapping example</h1>
+ <p>Choose any layer from 001–100 and any F key. All 12 buttons open splash screens. Button 1 increases speed and Button 2 opens an adjustment tool. On a touchscreen, tap once to preview and again to open.</p>
+ <label>Sample app speed <input id="speed" type="range" min="0" max="100" value="50"></label>
+ <output id="speed-value">50</output>
  <div id="log"></div>
 </main>
 </div>
-<script type="module">
-import {mountKeyboardLayer, BUTTON_KEYS} from "./src/sisla-keyboard-layer.js";
-
-const logEl = document.getElementById("log");
-const log = m => { const d = document.createElement("div"); d.textContent = `${new Date().toLocaleTimeString()}  ${m}`; logEl.appendChild(d); logEl.scrollTop = 1e9; };
-
-// Sample map: 3 layers, every menu filled with numbered buttons that just report themselves.
-const sample = (layerName, menuNames) => ({
-  name: layerName,
-  menus: Object.fromEntries(menuNames.map((name, i) => [i + 1, {
-    name, desc: `${name} controls on ${layerName}`,
-    buttons: Object.fromEntries(BUTTON_KEYS.map((k, j) => [k, {label: `${name} ${j + 1}`, desc: `${layerName} · F${i + 1} ${name} · button ${k}`, run: () => "ok"}])),
-  }])),
-});
-const layers = {
-  1: sample("Wind Tunnel", ["Run", "Air", "Vehicle", "Show", "Plane", "Colour", "View", "Panels"]),
-  2: sample("Autoshape", ["Shape", "Edit", "Snap", "Align", "Style", "Export"]),
-  3: sample("3D World", ["Scene", "Camera", "Lights", "Objects", "Physics", "Render", "Files", "Help", "Tools", "Debug", "Share", "About"]),
-};
-window.__keyboardLayer = mountKeyboardLayer(document.getElementById("kb"), {layers, onLog: log});
-log("Ready. Click the Layer button.");
-</script>
+<script type="module" src="./demo.mjs"></script>
 </body>
 </html>
