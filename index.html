@@ -164,10 +164,8 @@ function onDialWheel(e) {
   drawDial(v);
   document.getElementById('dialDisplay').textContent = pad3(v);
 }
-dial.addEventListener('wheel', onDialWheel, { passive: false });
-canvas.addEventListener('wheel', onDialWheel, { passive: false });
-const dialDisplay = document.getElementById('dialDisplay');
-dialDisplay.addEventListener('wheel', function(e) {
+const dialBox = document.querySelector('.dial');
+dialBox.addEventListener('wheel', function(e) {
   e.preventDefault();
   e.stopPropagation();
   let v = parseInt(dial.value) || 0;
@@ -175,9 +173,9 @@ dialDisplay.addEventListener('wheel', function(e) {
   if (v > 100) v = 100;
   if (v < 0) v = 0;
   dial.value = pad3(v);
-  this.textContent = pad3(v);
+  document.getElementById('dialDisplay').textContent = pad3(v);
   drawDial(v);
-}, { passive: false });
+}, { passive: false, capture: true });
 drawDial(0);
 const layerToggle = document.getElementById('layerToggle');
 const layerName = document.getElementById('layerName');
