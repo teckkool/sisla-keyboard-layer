@@ -45,9 +45,9 @@
     <h1>SISLA Keyboard Layer Demo</h1>
     <p style="margin:2px 0;font-size:11px;">Dial 0–100 · 12 menus (F1–F12) · 12 buttons (1–0 - =)</p>
 
-    <div class="dial" style="position:relative;display:inline-block;width:110px;height:110px;">
-      <canvas id="roundDial" width="110" height="110" style="vertical-align:middle;cursor:pointer;border-radius:50%;background:#222;"></canvas>
-      <div id="dialDisplay" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:26px;text-align:center;background:#111;border:1px solid #666;color:#fff;font-size:14px;border-radius:3px;font-family:monospace;cursor:ns-resize;line-height:26px;z-index:5;user-select:none;">000</div>
+    <div class="dial" style="position:relative;display:inline-block;width:160px;height:160px;">
+      <canvas id="roundDial" width="160" height="160" style="vertical-align:middle;cursor:pointer;border-radius:50%;background:#222;"></canvas>
+      <div id="dialDisplay" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:56px;height:32px;text-align:center;background:#111;border:1px solid #666;color:#fff;font-size:18px;border-radius:3px;font-family:monospace;cursor:ns-resize;line-height:32px;z-index:5;user-select:none;">000</div>
       <input type="hidden" id="dial" value="000">
       <button id="layerToggle">Layer OFF</button>
       <span id="layerName">Layer 0 (normal)</span>
@@ -79,8 +79,8 @@ const ctx = canvas.getContext('2d');
 let dialDragging = false;
 
 function drawDial(val) {
-  const cx = 55, cy = 55, r = 38;
-  ctx.clearRect(0, 0, 110, 110);
+  const cx = 80, cy = 80, r = 58;
+  ctx.clearRect(0, 0, 160, 160);
   // outer ring
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -106,7 +106,7 @@ function drawDial(val) {
     const lx = cx + Math.cos(a) * (r + 8);
     const ly = cy + Math.sin(a) * (r + 8);
     ctx.fillStyle = '#aaa';
-    ctx.font = '9px sans-serif';
+    ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(lab, lx, ly);
@@ -125,8 +125,8 @@ function pad3(n) { return String(Math.max(0, Math.min(100, n))).padStart(3, '0')
 
 function setDialFromEvent(e) {
   const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left - 55;
-  const y = e.clientY - rect.top - 55;
+  const x = e.clientX - rect.left - 80;
+  const y = e.clientY - rect.top - 80;
   let angle = Math.atan2(y, x) + Math.PI / 2;
   if (angle < 0) angle += Math.PI * 2;
   let val = Math.round((angle / (Math.PI * 2)) * 100) % 100;
