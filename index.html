@@ -99,10 +99,10 @@ function drawDial(val) {
     ctx.lineWidth = (deg % 30 === 0) ? 2 : 1;
     ctx.stroke();
   }
-  // 1-5 indicators around the dial
-  const labels = [1, 2, 3, 4, 5];
+  // 0 at top, then 1-5 around the clock
+  const labels = [0, 1, 2, 3, 4, 5];
   labels.forEach((lab, idx) => {
-    const a = (idx / 5) * Math.PI * 2 - Math.PI / 2;
+    const a = (idx / 6) * Math.PI * 2 - Math.PI / 2;
     const lx = cx + Math.cos(a) * (r + 8);
     const ly = cy + Math.sin(a) * (r + 8);
     ctx.fillStyle = '#aaa';
